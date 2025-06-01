@@ -68,3 +68,29 @@ Now, when ConPort is launched for the first time in a new workspace:
 
 4. **Commit “CLEANUP”**  
    * The changes were committed and pushed (`b15e58b`) to the `main` branch.
+---
+
+## 2025-06-01 — Fix for "no such table: custom_data"
+
+**Problem:**
+The test run (`CONPORT_TEST_PLAN_results.md`) revealed that tools related to `custom_data` (e.g., `log_custom_data`, `get_custom_data`) were failing with a "no such table: custom_data" error. This indicated that the `custom_data` table, along with potentially other related tables like history and links, were not being created by the initial Alembic migrations.
+
+**Fix process:**
+
+1.  **Updated SQLAlchemy ORM Models ([`src/context_portal_mcp/db/orm_models.py`](src/context_portal_mcp/db/orm_models.py:1)):**
+    *   Added the `CustomDataORM` model.
+    *   Added `ProductContextHistoryORM` and `ActiveContextHistoryORM` models for tracking changes to contexts.
+    *   Added `ContextLinkORM` for linking various ConPort items.
+    *   Added `ProgressEntryORM` and `SystemPatternORM` to complete the schema based on Pydantic models.
+    *   Ensured relationships (e.g., `history`, `parent`/`children`) and constraints (e.g., `UniqueConstraint` for `custom_data`, `unique=True` for `system_patterns.name`, `ondelete="CASCADE"` for history FKs) were correctly defined.
+
+2.  **Generated New Alembic Migration:**
+    *   After updating `orm_models.py`, a new Alembic migration script (`5cf9ea8bcc0b_add_custom_data_and_history_tables.py`) was generated using `alembic revision -m "add_custom_data_and_history_tables" --autogenerate`.
+    *   This script includes operations to create `custom_data`, `context_links`, `progress_entries`, `system_patterns`, and update history tables and indexes.
+    *   The new migration file was added to `src/context_portal_mcp/templates/alembic/alembic/versions/`.
+
+3.  **Initial Migration Verification:**
+    *   Confirmed that the existing initial migration script (`3d3360227021_create_initial_conport_tables_v2.py`) in the distribution templates is up-to-date and does not require changes.
+
+**Result:**
+With the updated ORM models and the new migration script, ConPort will now create all necessary tables, including `custom_data`, `context_links`, `progress_entries`, and `system_patterns`, during initialization in a new workspace. This resolves the "no such table" error and enables full functionality for custom data management and other related features.

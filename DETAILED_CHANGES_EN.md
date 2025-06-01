@@ -46,16 +46,27 @@
       ```bash
       python -m alembic -c src/context_portal_mcp/templates/alembic/alembic.ini revision -m "create_initial_conport_tables" --autogenerate
       ```
-      generated the initial migration file (`b7798b697008_create_initial_conport_tables.py`), which is now part of the templates.
+      generated the initial migration file (`b7798b697008_create_initial_conport_tables.py`), which is now part of the templates. This was later replaced by `3d3360227021_create_initial_conport_tables_v2.py`.
+    * **New migration file added (2025-06-01):** `5cf9ea8bcc0b_add_custom_data_and_history_tables.py` was generated to include `CustomDataORM`, history tables, and other schema additions.
 
 ---
 
 ### 3. SQLAlchemy ORM Models (`src.context_portal_mcp.db.orm_models`)
 
-* **New file `src/context_portal_mcp/db/orm_models.py` created:**
+* **File `src/context_portal_mcp/db/orm_models.py` updated:**
   * Contains the definition: `Base = declarative_base()`.
-  * Added examples of ORM models (`ProductContextORM`, `ActiveContextORM`, `DecisionORM`) corresponding to database tables.
-  * **Needs work:** ORM definitions for all other ConPort tables (ProgressEntry, SystemPattern, CustomData, ContextLink, history tables, etc.) must be added so Alembic autogeneration can include them.
+  * **Updated (2025-06-01):** The file was significantly updated to include ORM definitions for all core ConPort tables:
+    * `ProductContextORM` (with `history` relationship)
+    * `ActiveContextORM` (with `history` relationship)
+    * `DecisionORM`
+    * `ProgressEntryORM` (with parent/child relationships)
+    * `SystemPatternORM` (with unique constraint on name)
+    * `CustomDataORM` (with unique constraint on category/key)
+    * `ProductContextHistoryORM` (with ForeignKey to `product_context` and `ondelete="CASCADE"`)
+    * `ActiveContextHistoryORM` (with ForeignKey to `active_context` and `ondelete="CASCADE"`)
+    * `ContextLinkORM`
+    * Relationships between main context tables and their history tables were also defined.
+    * Indexing was added to key columns for performance.
 
 ---
 
@@ -70,17 +81,18 @@
 ---
 
 **General result:**
-After these changes, provided that `src/context_portal_mcp/db/orm_models.py` includes complete definitions for all tables and the migration is regenerated to include them, ConPort should automatically create and set up the database with all tables on first run in a new workspace.
+After these changes, ConPort should automatically create and set up the database with all tables, including `custom_data` and related entities, on first run in a new workspace.
 
 ---
 
-### 5. Additional Changes (2025-06-01)
+### 5. Additional Changes (Chronological)
 
-| File/Component                          | Change |
-|------------------------------------------|--------|
-| `src.context_portal_mcp.db.database`     | • `_add_context_history_entry` — added **`context_id`** parameter and logic for column selection (`product_context_id` / `active_context_id`).<br>• `update_product_context` and `update_active_context` now pass `1` as `context_id`. |
-| Initial migration script                 | The corrected `3d3360227021_create_initial_conport_tables_v2.py` includes:<br>• History tables `product_context_history`, `active_context_history` with columns `timestamp`, `version`, `change_source`, and references to the main tables.<br>• Insertion of initial rows into `product_context` and `active_context`. |
-| Alembic templates                        | The directory `templates/alembic/alembic/versions/` contains the **only** correct migration file. |
-| Repository cleanup                       | Removed root-level duplicate files (`3d3360227021_create_initial_conport_tables_v2.py`, `CONPORT_FULL_TEST_REPORT.md`). Commit `b15e58b`. |
+| Date       | File/Component                          | Change |
+|------------|------------------------------------------|--------|
+| 2025-06-01 | `src.context_portal_mcp.db.database`     | • `_add_context_history_entry` — added **`context_id`** parameter and logic for column selection (`product_context_id` / `active_context_id`).<br>• `update_product_context` and `update_active_context` now pass `1` as `context_id`. |
+| 2025-06-01 | Initial migration script                 | The corrected `3d3360227021_create_initial_conport_tables_v2.py` includes:<br>• History tables `product_context_history`, `active_context_history` with columns `timestamp`, `version`, `change_source`, and references to the main tables.<br>• Insertion of initial rows into `product_context` and `active_context`. Verified as current. |
+| 2025-06-01 | Alembic templates                        | The directory `templates/alembic/alembic/versions/` contains the correct initial migration file (`3d3360227021_create_initial_conport_tables_v2.py`) and the new migration for additional tables (`5cf9ea8bcc0b_add_custom_data_and_history_tables.py`). |
+| 2025-06-01 | Repository cleanup                       | Removed root-level duplicate files (`3d3360227021_create_initial_conport_tables_v2.py`, `CONPORT_FULL_TEST_REPORT.md`). Commit `b15e58b`. |
+| 2025-06-01 | `src.context_portal_mcp.db.orm_models` & Alembic | • Completed ORM definitions for `CustomData`, `ProgressEntry`, `SystemPattern`, `ContextLink`, and history tables in `orm_models.py`.<br>• Generated new Alembic migration `5cf9ea8bcc0b_add_custom_data_and_history_tables.py` to include these tables and necessary schema updates.<br>• Verified initial migration `3d3360227021_...` is current before generating new one. |
 
-> After these fixes, ConPort initializes the database in a clean workspace without errors and properly maintains context change history.
+> After these fixes, ConPort initializes the database in a clean workspace without errors and properly maintains context change history, including full support for custom_data.
