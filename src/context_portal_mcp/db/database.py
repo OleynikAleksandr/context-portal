@@ -91,71 +91,80 @@ def ensure_alembic_files_exist(workspace_root_dir: Path):
         else:
             log.warning(f"Template alembic.ini not found at {template_ini_path}. Cannot auto-provision.")
 
-    # Check for alembic/ directory
-    if not alembic_dir_path.exists():
-        log.debug(f"alembic/ directory not found at {alembic_dir_path}. Attempting to provision.")
-        template_scripts_dir = template_alembic_dir / "alembic"
+    # Check for alembic/ directory and its versions subdirectory
+    if not alembic_dir_path.exists() or not (alembic_dir_path / "versions").exists():
+        log.debug(f"alembic/ directory or alembic/versions/ not found at {alembic_dir_path}. Attempting to provision.")
+        template_scripts_dir = template_alembic_dir / "alembic" # This is the 'alembic' folder inside templates
         if template_scripts_dir.is_dir():
             try:
-                log.info(f"Copying missing alembic/ scripts from templates to {alembic_dir_path}")
+                # Copy the entire 'alembic' template directory (includes env.py, script.py.mako, versions/)
+                log.info(f"Copying missing alembic/ structure from templates at {template_scripts_dir} to {alembic_dir_path}")
                 shutil.copytree(template_scripts_dir, alembic_dir_path, dirs_exist_ok=True)
-                log.debug(f"alembic/ directory copied. Exists: {alembic_dir_path.exists()}")
+                log.debug(f"alembic/ directory structure copied. Alembic dir exists: {alembic_dir_path.exists()}, Versions dir exists: {(alembic_dir_path / 'versions').exists()}")
+                
+                # Specifically ensure the versions directory exists after copy, create if not (though copytree should handle it)
+                versions_target_dir = alembic_dir_path / "versions"
+                if not versions_target_dir.exists():
+                    versions_target_dir.mkdir(parents=True, exist_ok=True)
+                    log.info(f"Created missing versions directory at {versions_target_dir}")
+
             except shutil.Error as e:
-                log.error(f"Failed to copy alembic/ directory: {e}")
-                raise DatabaseError(f"Failed to provision alembic/ directory: {e}")
+                log.error(f"Failed to copy alembic/ directory structure: {e}")
+                raise DatabaseError(f"Failed to provision alembic/ directory structure: {e}")
         else:
             log.warning(f"Template alembic/ directory not found at {template_scripts_dir}. Cannot auto-provision.")
+    else:
+        log.debug(f"Alembic directory {alembic_dir_path} and versions subdir already exist.")
+
 
 def run_migrations(db_path: Path, project_root_dir: Path):
     """
     Runs Alembic migrations to upgrade the database to the latest version.
     This function is called on database connection to ensure schema is up-to-date.
     """
-    # Construct the absolute path to alembic.ini and the scripts directory
-    # using the provided project_root_dir
-# Ensure Alembic files are present in the project_root_dir before proceeding
+    # Ensure Alembic files are present in the project_root_dir before proceeding
     ensure_alembic_files_exist(project_root_dir)
-    alembic_ini_path = project_root_dir / Path("alembic.ini")
-    alembic_scripts_path = project_root_dir / Path("alembic")
 
-    # Initialize Alembic Config with the path to alembic.ini
+    alembic_ini_path = (project_root_dir / "alembic.ini").resolve()
+    alembic_scripts_path = (project_root_dir / "alembic").resolve()
+    resolved_db_path = db_path.resolve()
+
+    # Initialize Alembic Config with the absolute path to alembic.ini
     log.debug(f"Alembic: Current working directory (os.getcwd()): {os.getcwd()}")
-    log.debug(f"Alembic: Initializing Config with alembic_ini_path = {alembic_ini_path.resolve()}")
-    log.debug(f"Alembic: Setting script_location to alembic_scripts_path = {alembic_scripts_path.resolve()}")
+    log.debug(f"Alembic: Initializing Config with resolved alembic_ini_path = {alembic_ini_path}")
+    
+    if not alembic_ini_path.exists():
+        log.error(f"Alembic: CRITICAL - alembic.ini not found at {alembic_ini_path} after ensure_alembic_files_exist call.")
+        raise DatabaseError(f"alembic.ini not found at {alembic_ini_path}")
+        
     alembic_cfg = Config(str(alembic_ini_path))
     
-    # Explicitly set the script location as a main option.
-    # This is often more robust than relying on the .ini file or cmd_opts for this specific setting.
+    # Explicitly set the script location to its absolute path.
+    log.debug(f"Alembic: Setting script_location to resolved path = {alembic_scripts_path}")
     alembic_cfg.set_main_option("script_location", str(alembic_scripts_path))
 
-    # Override sqlalchemy.url in alembic.ini to point to the specific workspace's DB
-    # This is crucial for multi-workspace support.
-    alembic_cfg.set_main_option("sqlalchemy.url", f"sqlite:///{db_path}")
+    # Override sqlalchemy.url in alembic.ini to point to the specific workspace's DB (absolute path)
+    actual_db_url = f"sqlite:///{resolved_db_path}"
+    log.debug(f"Alembic: Setting sqlalchemy.url to resolved path = {actual_db_url}")
+    alembic_cfg.set_main_option("sqlalchemy.url", actual_db_url)
 
-    # Configure logging for Alembic (optional, can be done via Python's root logger)
-    # The fileConfig call was causing issues and is not strictly necessary if alembic.ini
-    # is only used for script_location and sqlalchemy.url.
-    # Alembic's command.upgrade will handle its own logging if not explicitly configured.
+    # Log the final configuration values being used by Alembic
+    log.info(f"Alembic effective config: script_location='{alembic_cfg.get_main_option('script_location')}', sqlalchemy.url='{alembic_cfg.get_main_option('sqlalchemy.url')}'")
 
-    log.debug(f"Alembic Config: script_location = {alembic_cfg.get_main_option('script_location')}")
-    log.debug(f"Alembic Config: sqlalchemy.url = {alembic_cfg.get_main_option('sqlalchemy.url')}")
-
-    # Add explicit path existence check
-    resolved_script_path = Path(alembic_cfg.get_main_option('script_location'))
-    log.debug(f"Alembic: Resolved script path for existence check: {resolved_script_path}")
-    if not resolved_script_path.exists():
-        log.error(f"Alembic: CRITICAL - Script directory {resolved_script_path} does NOT exist according to Python!")
-        raise DatabaseError(f"Alembic scripts directory not found: {resolved_script_path}")
+    # Verify existence of the script directory just before running migrations
+    if not alembic_scripts_path.exists() or not (alembic_scripts_path / "versions").exists():
+        log.error(f"Alembic: CRITICAL - Script directory {alembic_scripts_path} or its 'versions' subdirectory does NOT exist before command.upgrade!")
+        raise DatabaseError(f"Alembic scripts directory or versions subdirectory not found: {alembic_scripts_path}")
     else:
-        log.info(f"Alembic: Script directory {resolved_script_path} confirmed to exist by Python.")
+        log.info(f"Alembic: Script directory {alembic_scripts_path} and versions subdir confirmed to exist by Python before upgrade.")
 
-    log.info(f"Running Alembic migrations for database: {db_path}")
+    log.info(f"Running Alembic migrations for database at: {resolved_db_path}")
     try:
-        cursor = None # Initialize cursor to None
+        # Removed cursor initialization as it's not used directly by command.upgrade
         command.upgrade(alembic_cfg, "head")
-        log.info(f"Alembic migrations completed successfully for {db_path}.")
+        log.info(f"Alembic migrations completed successfully for {resolved_db_path}.")
     except Exception as e:
-        log.error(f"Alembic migration failed for {db_path}: {e}", exc_info=True)
+        log.error(f"Alembic migration failed for {resolved_db_path}: {e}", exc_info=True)
         raise DatabaseError(f"Database migration failed: {e}")
 
 

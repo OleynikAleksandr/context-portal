@@ -24,15 +24,47 @@ if config.config_file_name is not None:
 # When run by the application, the Base metadata will be populated.
 # Ensure your models are imported somewhere before Alembic tries to use target_metadata
 # for autogeneration, or ensure target_metadata is correctly populated.
-# For ConPort, the schema is defined in src.context_portal_mcp.db.models.Base.metadata
+# For ConPort, the schema is defined in src.context_portal_mcp.db.orm_models.Base.metadata
 # We will attempt to import it here.
+import os
+import sys
+
+# When alembic CLI is run, os.getcwd() should be the project root (d:/.context-portal)
+# Add this to the beginning of sys.path to ensure 'src' is found.
+current_working_directory = os.getcwd()
+if current_working_directory not in sys.path:
+    sys.path.insert(0, current_working_directory)
+
+# For debugging, also print the path env.py *thinks* is the project root based on its location
+# env.py is in .../src/context_portal_mcp/templates/alembic/alembic/env.py
+# So, 5 levels up should be the project root d:/.context-portal
+calculated_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..'))
+print(f"DEBUG ENV.PY: current_working_directory (os.getcwd()) = {current_working_directory}")
+print(f"DEBUG ENV.PY: calculated_project_root = {calculated_project_root}")
+print(f"DEBUG ENV.PY: Initial sys.path = {sys.path}")
+
+# Check existence of key files/dirs based on CWD
+models_path_from_cwd = os.path.join(current_working_directory, "src", "context_portal_mcp", "db", "orm_models.py")
+print(f"DEBUG ENV.PY: Expected orm_models.py path based on CWD: {models_path_from_cwd}")
+print(f"DEBUG ENV.PY: Does orm_models.py exist at CWD-based path? {os.path.exists(models_path_from_cwd)}")
+
+src_path_from_cwd = os.path.join(current_working_directory, "src")
+print(f"DEBUG ENV.PY: Expected src directory path based on CWD: {src_path_from_cwd}")
+print(f"DEBUG ENV.PY: Does src directory exist at CWD-based path? {os.path.isdir(src_path_from_cwd)}")
+
+
 try:
-    from src.context_portal_mcp.db.models import Base
+    from src.context_portal_mcp.db.orm_models import Base # Corrected import
     target_metadata = Base.metadata
-except ImportError:
-    # This might happen if alembic is run from a context where src. is not on PYTHONPATH
-    # In such cases, autogenerate might not fully work without manual adjustments
-    # or ensuring PYTHONPATH is set up correctly for alembic CLI runs.
+    if target_metadata is None: # Should not happen if Base is imported correctly
+        print("WARNING: target_metadata is None after importing Base from orm_models.")
+    else:
+        print("SUCCESS: Imported Base and target_metadata is set.")
+except ImportError as e:
+    print(f"Error importing Base from src.context_portal_mcp.db.orm_models: {e}")
+    print(f"Calculated project root (based on env.py location): {calculated_project_root}")
+    print(f"os.getcwd() (when alembic CLI runs): {current_working_directory}") # This will be the same as above if CWD isn't changed by alembic internals
+    print(f"Current sys.path after potential modifications: {sys.path}")
     target_metadata = None
 
 
