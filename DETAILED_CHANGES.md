@@ -67,3 +67,15 @@
 
 **Общий результат:**
 После этих изменений, при условии, что `src/context_portal_mcp/db/orm_models.py` будет содержать полные определения всех таблиц и миграция будет перегенерирована для их включения, ConPort должен полностью автоматически создавать и настраивать базу данных со всеми таблицами при первом запуске в новом рабочем пространстве.
+---
+
+### 5. Дополнительные изменения (2025-06-01)
+
+| Файл/компонент | Изменение |
+| --- | --- |
+| `src.context_portal_mcp.db.database` | • `_add_context_history_entry` — добавлен параметр **`context_id`** и логика выбора колонки (`product_context_id` / `active_context_id`).<br>• `update_product_context` и `update_active_context` передают `1` как `context_id`. |
+| Начальный скрипт миграции | Исправленный `3d3360227021_create_initial_conport_tables_v2.py` включает:<br>• Таблицы истории `product_context_history`, `active_context_history` с колонками `timestamp`, `version`, `change_source`, ссылками на основные таблицы.<br>• Вставку начальных строк в `product_context` и `active_context`. |
+| Шаблоны Alembic | В каталоге `templates/alembic/alembic/versions/` хранится **единственный** корректный файл миграции. |
+| Чистка репозитория | Удалены корневые файлы-дубликаты (`3d3360227021_create_initial_conport_tables_v2.py`, `CONPORT_FULL_TEST_REPORT.md`). Коммит `b15e58b`. |
+
+> После этих правок ConPort без ошибок инициализирует базу в чистом рабочем пространстве и корректно ведёт историю изменений контекстов.
