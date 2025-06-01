@@ -94,3 +94,28 @@ The test run (`CONPORT_TEST_PLAN_results.md`) revealed that tools related to `cu
 
 **Result:**
 With the updated ORM models and the new migration script, ConPort will now create all necessary tables, including `custom_data`, `context_links`, `progress_entries`, and `system_patterns`, during initialization in a new workspace. This resolves the "no such table" error and enables full functionality for custom data management and other related features.
+---
+
+## 2025-06-01 — Final Alembic Adjustments and .gitignore Fix
+
+**Problem Recap:**
+Even after adding the new migration for `custom_data` and other tables, testing revealed that these tables were still not being created on a fresh initialization. Further investigation showed two issues:
+1.  The initial migration script (`3d3360227021_create_initial_conport_tables_v2.py`) was using `server_default='{}'` for JSON fields, which could lead to SQLite storing it as a string, causing Pydantic validation errors (e.g., for `active_context`).
+2.  The newly generated migration file (`..._add_custom_data_and_history_tables.py`) was not being committed to the repository due to an overly broad `.gitignore` rule and was therefore missing from the distribution templates.
+
+**Fix process:**
+
+1.  **Corrected Initial Migration Script (`...versions/3d3360227021_...py`):**
+    *   Modified `server_default='{}'` to `server_default=sa.text("'{}'")` for `product_context.content` and `active_context.content` to ensure SQLite stores an actual JSON object.
+    *   Updated `op.bulk_insert` for these tables to use `json.dumps({})` for the `content` value, ensuring correct JSON string insertion.
+
+2.  **Ensured Second Migration Inclusion:**
+    *   The second migration script (`2124bc786e21_add_custom_data_and_history_tables.py` - note: ID might change if regenerated) was re-generated after confirming the ORM models were correct.
+    *   The `.gitignore` file was updated to correctly track all necessary Alembic template files, including all migration scripts in the `versions` subdirectory. Specifically, general rules like `alembic/` were changed to `/alembic/` (root-only), and explicit `!src/context_portal_mcp/templates/alembic/alembic/versions/*` ensure template migrations are included.
+    *   The new migration script was then successfully added to Git and committed.
+
+**Result:**
+With these final adjustments:
+*   The initial migration now correctly sets up default JSON values.
+*   Both migration scripts (initial and the one adding `custom_data`, etc.) are now correctly included in the distribution templates and are applied sequentially during a fresh database initialization.
+*   This ensures the complete database schema is created as intended, resolving all previously identified "no such table" errors and Pydantic validation issues related to initial context data.

@@ -41,13 +41,10 @@
       target_metadata = Base.metadata
       ```
   * **`src/context_portal_mcp/templates/alembic/alembic/versions/`:**
-    * Directory created (initially with `.gitkeep`, later overwritten).
-    * **Migration file added:** After setup, the command
-      ```bash
-      python -m alembic -c src/context_portal_mcp/templates/alembic/alembic.ini revision -m "create_initial_conport_tables" --autogenerate
-      ```
-      generated the initial migration file (`b7798b697008_create_initial_conport_tables.py`), which is now part of the templates. This was later replaced by `3d3360227021_create_initial_conport_tables_v2.py`.
-    * **New migration file added (2025-06-01):** `5cf9ea8bcc0b_add_custom_data_and_history_tables.py` was generated to include `CustomDataORM`, history tables, and other schema additions.
+    * Directory created.
+    * **Initial migration file (`3d3360227021_create_initial_conport_tables_v2.py`):** This file, part of the templates, creates the initial set of tables (`product_context`, `active_context`, `decisions`, and their history tables).
+        * **Updated (2025-06-01):** Corrected `server_default` for JSON columns to use `sa.text("'{}'")` and `op.bulk_insert` to use `json.dumps({})` to prevent Pydantic validation errors for `active_context`. (Commit `1525340`)
+    * **Second migration file (`2124bc786e21_add_custom_data_and_history_tables.py`) added (2025-06-01):** Generated to include `CustomDataORM`, `ContextLinkORM`, `ProgressEntryORM`, `SystemPatternORM`, and other schema additions/updates based on the completed `orm_models.py`. (Commit `4b378cc`)
 
 ---
 
@@ -66,7 +63,7 @@
     * `ActiveContextHistoryORM` (with ForeignKey to `active_context` and `ondelete="CASCADE"`)
     * `ContextLinkORM`
     * Relationships between main context tables and their history tables were also defined.
-    * Indexing was added to key columns for performance.
+    * Indexing was added to key columns for performance. (Commit `ca45e41`)
 
 ---
 
@@ -81,7 +78,7 @@
 ---
 
 **General result:**
-After these changes, ConPort should automatically create and set up the database with all tables, including `custom_data` and related entities, on first run in a new workspace.
+After these changes, ConPort should automatically create and set up the database with all tables, including `custom_data` and related entities, on first run in a new workspace, applying both migration scripts sequentially.
 
 ---
 
@@ -90,9 +87,10 @@ After these changes, ConPort should automatically create and set up the database
 | Date       | File/Component                          | Change |
 |------------|------------------------------------------|--------|
 | 2025-06-01 | `src.context_portal_mcp.db.database`     | • `_add_context_history_entry` — added **`context_id`** parameter and logic for column selection (`product_context_id` / `active_context_id`).<br>• `update_product_context` and `update_active_context` now pass `1` as `context_id`. |
-| 2025-06-01 | Initial migration script                 | The corrected `3d3360227021_create_initial_conport_tables_v2.py` includes:<br>• History tables `product_context_history`, `active_context_history` with columns `timestamp`, `version`, `change_source`, and references to the main tables.<br>• Insertion of initial rows into `product_context` and `active_context`. Verified as current. |
-| 2025-06-01 | Alembic templates                        | The directory `templates/alembic/alembic/versions/` contains the correct initial migration file (`3d3360227021_create_initial_conport_tables_v2.py`) and the new migration for additional tables (`5cf9ea8bcc0b_add_custom_data_and_history_tables.py`). |
-| 2025-06-01 | Repository cleanup                       | Removed root-level duplicate files (`3d3360227021_create_initial_conport_tables_v2.py`, `CONPORT_FULL_TEST_REPORT.md`). Commit `b15e58b`. |
-| 2025-06-01 | `src.context_portal_mcp.db.orm_models` & Alembic | • Completed ORM definitions for `CustomData`, `ProgressEntry`, `SystemPattern`, `ContextLink`, and history tables in `orm_models.py`.<br>• Generated new Alembic migration `5cf9ea8bcc0b_add_custom_data_and_history_tables.py` to include these tables and necessary schema updates.<br>• Verified initial migration `3d3360227021_...` is current before generating new one. |
+| 2025-06-01 | Initial migration script (`3d3360227021_...py`) | • Includes base tables (`product_context`, `active_context`, `decisions`, history).<br>• **Corrected (2025-06-01):** `server_default` for JSON (to `sa.text("'{}'")`) and `op.bulk_insert` (to `json.dumps({})`) to fix Pydantic validation for `active_context`. (Part of commit `1525340`) |
+| 2025-06-01 | Alembic templates                        | The directory `templates/alembic/alembic/versions/` now contains two migration files: the corrected initial one (`3d3360227021_...`) and the new one for additional tables (`2124bc786e21_...`). |
+| 2025-06-01 | Repository cleanup                       | Removed root-level duplicate files (`3d3360227021_create_initial_conport_tables_v2.py`, `CONPORT_FULL_TEST_REPORT.md`). Commit `b15e58b` (before `ca45e41`). |
+| 2025-06-01 | `src.context_portal_mcp.db.orm_models` & Alembic | • Completed ORM definitions for `CustomData`, `ProgressEntry`, `SystemPattern`, `ContextLink`, and history tables in `orm_models.py` (Commit `ca45e41`).<br>• Generated new Alembic migration `2124bc786e21_add_custom_data_and_history_tables.py` to include these tables and necessary schema updates. This migration was successfully added to Git (Commit `4b378cc`). |
+| 2025-06-01 | `.gitignore`                             | Corrected rules to ensure Alembic template files, especially migration scripts in `versions/`, are properly tracked by Git. Changed `alembic/` to `/alembic/` for root-only matching. (Part of commit `4b378cc`). |
 
-> After these fixes, ConPort initializes the database in a clean workspace without errors and properly maintains context change history, including full support for custom_data.
+> After these fixes, ConPort initializes the database in a clean workspace without errors and properly maintains context change history, including full support for custom_data. The presence of two migration files is standard for Alembic and ensures sequential schema evolution.
