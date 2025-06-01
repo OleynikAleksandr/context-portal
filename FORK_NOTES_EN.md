@@ -119,3 +119,21 @@ With these final adjustments:
 *   The initial migration now correctly sets up default JSON values.
 *   Both migration scripts (initial and the one adding `custom_data`, etc.) are now correctly included in the distribution templates and are applied sequentially during a fresh database initialization.
 *   This ensures the complete database schema is created as intended, resolving all previously identified "no such table" errors and Pydantic validation issues related to initial context data.
+---
+
+## 2025-06-01 — SQLite Batch Mode for Alembic Migrations
+
+**Problem:**
+During initialization on a new workspace (attempt 2, see `conport_initialization_report_attempt_2.md`), an error occurred: `Database migration failed: No support for ALTER of constraints in SQLite dialect.` This happened even when creating the database from scratch.
+
+**Cause:**
+SQLite has limitations regarding `ALTER TABLE` operations, especially for modifying constraints. Alembic requires "batch mode" to be enabled to work around these limitations by creating a new table, copying data, dropping the old table, and renaming the new one. This mode was not enabled.
+
+**Fix process:**
+
+1.  **Enabled Batch Mode in Alembic (`alembic/env.py`):**
+*   In the template file `src/context_portal_mcp/templates/alembic/alembic/env.py`, the `context.configure()` calls within both `run_migrations_offline()` and `run_migrations_online()` functions were updated to include `render_as_batch=True`.
+*   This ensures that Alembic uses the copy-and-move strategy for migrations involving operations that SQLite doesn't natively support for `ALTER TABLE`.
+
+**Result:**
+With batch mode enabled, Alembic should now be able to correctly apply all migrations, including those that might implicitly or explicitly try to alter constraints in a way SQLite normally disallows, even during the initial creation of the database from multiple migration scripts. This is expected to resolve the `No support for ALTER of constraints in SQLite dialect` error.

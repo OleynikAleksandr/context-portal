@@ -40,6 +40,7 @@
       from src.context_portal_mcp.db.orm_models import Base
       target_metadata = Base.metadata
       ```
+    * **Changed (2025-06-01):** Updated `context.configure()` calls within both `run_migrations_offline()` and `run_migrations_online()` to include `render_as_batch=True`. This enables SQLite "batch mode" to handle complex migrations like altering constraints, resolving `No support for ALTER of constraints in SQLite dialect` errors.
   * **`src/context_portal_mcp/templates/alembic/alembic/versions/`:**
     * Directory created.
     * **Initial migration file (`3d3360227021_create_initial_conport_tables_v2.py`):** This file, part of the templates, creates the initial set of tables (`product_context`, `active_context`, `decisions`, and their history tables).
@@ -92,5 +93,6 @@ After these changes, ConPort should automatically create and set up the database
 | 2025-06-01 | Repository cleanup                       | Removed root-level duplicate files (`3d3360227021_create_initial_conport_tables_v2.py`, `CONPORT_FULL_TEST_REPORT.md`). Commit `b15e58b` (before `ca45e41`). |
 | 2025-06-01 | `src.context_portal_mcp.db.orm_models` & Alembic | • Completed ORM definitions for `CustomData`, `ProgressEntry`, `SystemPattern`, `ContextLink`, and history tables in `orm_models.py` (Commit `ca45e41`).<br>• Generated new Alembic migration `2124bc786e21_add_custom_data_and_history_tables.py` to include these tables and necessary schema updates. This migration was successfully added to Git (Commit `4b378cc`). |
 | 2025-06-01 | `.gitignore`                             | Corrected rules to ensure Alembic template files, especially migration scripts in `versions/`, are properly tracked by Git. Changed `alembic/` to `/alembic/` for root-only matching. (Part of commit `4b378cc`). |
+| 2025-06-01 | `src.context_portal_mcp.templates.alembic.alembic.env.py` | Added `render_as_batch=True` to `context.configure()` in `run_migrations_offline()` and `run_migrations_online()` to enable SQLite batch mode for migrations. |
 
-> After these fixes, ConPort initializes the database in a clean workspace without errors and properly maintains context change history, including full support for custom_data. The presence of two migration files is standard for Alembic and ensures sequential schema evolution.
+> After these fixes, ConPort initializes the database in a clean workspace without errors and properly maintains context change history, including full support for custom_data. The presence of two migration files is standard for Alembic and ensures sequential schema evolution. The `render_as_batch=True` setting further ensures robust migration application on SQLite.
