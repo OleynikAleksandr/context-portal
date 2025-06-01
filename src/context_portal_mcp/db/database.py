@@ -185,6 +185,7 @@ def _get_latest_context_version(cursor: sqlite3.Cursor, table_name: str) -> int:
 def _add_context_history_entry(
     cursor: sqlite3.Cursor,
     history_table_name: str,
+    context_id: int, # ID из основной таблицы (product_context.id или active_context.id)
     version: int,
     content_dict: Dict[str, Any],
     change_source: Optional[str]
@@ -192,13 +193,22 @@ def _add_context_history_entry(
     """Adds an entry to the specified context history table."""
     content_json = json.dumps(content_dict)
     timestamp = datetime.utcnow()
+
+    id_column_name = ""
+    if history_table_name == "product_context_history":
+        id_column_name = "product_context_id"
+    elif history_table_name == "active_context_history":
+        id_column_name = "active_context_id"
+    else:
+        raise ValueError(f"Unknown history_table_name for _add_context_history_entry: {history_table_name}")
+
     try:
         cursor.execute(
             f"""
-            INSERT INTO {history_table_name} (timestamp, version, content, change_source)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO {history_table_name} ({id_column_name}, timestamp, version, content, change_source)
+            VALUES (?, ?, ?, ?, ?)
             """,
-            (timestamp, version, content_json, change_source)
+            (context_id, timestamp, version, content_json, change_source)
         )
     except sqlite3.Error as e:
         # This error should be handled by the calling function's rollback
@@ -263,6 +273,7 @@ def update_product_context(workspace_id: str, update_args: models.UpdateContextA
         _add_context_history_entry(
             cursor,
             "product_context_history",
+            1, # Передаем ID основной таблицы product_context (всегда 1)
             new_version,
             current_content_dict, # Log the content *before* the update
             "update_product_context" # Basic change source
@@ -334,6 +345,7 @@ def update_active_context(workspace_id: str, update_args: models.UpdateContextAr
         _add_context_history_entry(
             cursor,
             "active_context_history",
+            1, # Передаем ID основной таблицы active_context (всегда 1)
             new_version,
             current_content_dict, # Log the content *before* the update
             "update_active_context" # Basic change source
