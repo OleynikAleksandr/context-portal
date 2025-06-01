@@ -28,6 +28,10 @@ alembic.ini
 !src/context_portal_mcp/templates/alembic/alembic.ini.mako
 !src/context_portal_mcp/templates/alembic/env.py
 !src/context_portal_mcp/templates/alembic/script.py.mako
+!src/context_portal_mcp/templates/alembic/alembic.ini
+!src/context_portal_mcp/templates/alembic/alembic/
+!src/context_portal_mcp/templates/alembic/alembic/versions/
+!src/context_portal_mcp/templates/alembic/alembic/versions/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
