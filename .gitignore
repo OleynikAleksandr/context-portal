@@ -23,8 +23,11 @@ conport_migration_test_backup/
 alembic/
 alembic.ini
 # Allow Alembic templates for ConPort package
-!src/context_portal_mcp/templates/alembic/alembic.ini
-!src/context_portal_mcp/templates/alembic/alembic/
+# Ensure specific template files are not ignored, even if 'alembic.ini' or 'alembic/' are generally ignored.
+!src/context_portal_mcp/templates/alembic/README
+!src/context_portal_mcp/templates/alembic/alembic.ini.mako
+!src/context_portal_mcp/templates/alembic/env.py
+!src/context_portal_mcp/templates/alembic/script.py.mako
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

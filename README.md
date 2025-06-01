@@ -17,6 +17,12 @@
 
 <br>
 
+> **Note on this Fork (OleynikAleksandr/context-portal):**
+> This repository is a fork of the original [GreatScottyMac/context-portal](https://github.com/GreatScottyMac/context-portal), based on its `0.2.4` version.
+> This specific fork incorporates fixes primarily for initial setup and Alembic integration, aiming for a smoother "out-of-the-box" experience.
+> The version of this fork is `0.2.4+fork.alembic_fixes` (see [`pyproject.toml`](pyproject.toml:7)).
+> For a summary of changes, refer to [`FORK_NOTES.md`](FORK_NOTES.md:1). For detailed differences, see [`DETAILED_CHANGES.md`](DETAILED_CHANGES.md:1).
+
 A database-backed Model Context Protocol (MCP) server for managing structured project context, designed to be used by AI assistants and developer tools within IDEs and other interfaces.
 
 </div>
@@ -249,18 +255,34 @@ These instructions guide you through setting up ConPort by cloning its Git repos
       pip install -r requirements.txt
       ```
 
-4.  **Verify Installation (Optional):**
+4.  **Verify Installation and Run Manually (Optional):**
     Ensure your virtual environment is activated.
+
+    To verify the script can be found and to see help options:
     - **Using `uv`:**
       ```bash
       uv run python src/context_portal_mcp/main.py --help
       ```
     - **Using standard `python`:**
-      `bash
+      ```bash
     python src/context_portal_mcp/main.py --help
-    `
+      ```
       This should output the command-line help for the ConPort server.
 
+    To run the server manually in STDIO mode from the root of the cloned `context-portal` directory (assuming your project workspace is the current directory):
+    - **Using `uv`:**
+      ```bash
+      uv run python src/context_portal_mcp/main.py --mode stdio --workspace_id .
+      ```
+    - **Using standard `python` (module execution):**
+      ```bash
+      python -m src.context_portal_mcp.main --mode stdio --workspace_id .
+      ```
+    - **Using standard `python` (direct script execution):**
+      ```bash
+      python src/context_portal_mcp/main.py --mode stdio --workspace_id .
+      ```
+    Replace `.` with the actual absolute path to your project workspace if it's different from the current directory where you are running ConPort.
 <br>
 
 **Recommended Configuration (Direct Python Invocation):**

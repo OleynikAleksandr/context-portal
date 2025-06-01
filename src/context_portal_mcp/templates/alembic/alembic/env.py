@@ -10,7 +10,7 @@ from alembic import context
 config = context.config
 
 # Interpret the config file for Python logging.
-# This line reads the loggers section in your alembic.ini file.
+# This line reads the section in alembic.ini regarding logging configuration.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
@@ -18,15 +18,22 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-# target_metadata = None
-
-# ConPort specific:
-# The actual target_metadata will be dynamically set by ConPort's database module
-# when it configures Alembic at runtime, based on the models defined in
-# src.context_portal_mcp.db.models. This template provides a placeholder.
-# from src.context_portal_mcp.db import models as conport_models # This line would cause issues if templates are copied as-is
-# target_metadata = conport_models.Base.metadata
-target_metadata = None
+# For ConPort, models are defined in db.models, but direct import for autogen might be tricky
+# due to dynamic DB paths. We will manage migrations manually for now by importing models
+# from the application structure when generating revisions.
+# When run by the application, the Base metadata will be populated.
+# Ensure your models are imported somewhere before Alembic tries to use target_metadata
+# for autogeneration, or ensure target_metadata is correctly populated.
+# For ConPort, the schema is defined in src.context_portal_mcp.db.models.Base.metadata
+# We will attempt to import it here.
+try:
+    from src.context_portal_mcp.db.models import Base
+    target_metadata = Base.metadata
+except ImportError:
+    # This might happen if alembic is run from a context where src. is not on PYTHONPATH
+    # In such cases, autogenerate might not fully work without manual adjustments
+    # or ensuring PYTHONPATH is set up correctly for alembic CLI runs.
+    target_metadata = None
 
 
 # other values from the config, defined by the needs of env.py,
@@ -66,24 +73,11 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    # connectable = engine_from_config(
-    #     config.get_section(config.config_ini_section, {}),
-    #     prefix="sqlalchemy.",
-    #     poolclass=pool.NullPool,
-    # )
-    # ConPort specific: The sqlalchemy.url is set directly by ConPort's database module
-    # into the config object before this script is called.
-    # We retrieve it directly here to create the engine.
-    db_url = config.get_main_option("sqlalchemy.url")
-    if not db_url:
-        raise ValueError("sqlalchemy.url is not set in Alembic config for online mode.")
-
     connectable = engine_from_config(
-        {"sqlalchemy.url": db_url}, # Pass only the URL to engine_from_config
-        prefix="sqlalchemy.",       # Standard prefix
-        poolclass=pool.NullPool
+        config.get_section(config.config_ini_section, {}),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
     )
-
 
     with connectable.connect() as connection:
         context.configure(
