@@ -22,6 +22,9 @@ logs/
 conport_migration_test_backup/
 alembic/
 alembic.ini
+# Allow Alembic templates for ConPort package
+!src/context_portal_mcp/templates/alembic/alembic.ini
+!src/context_portal_mcp/templates/alembic/alembic/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
