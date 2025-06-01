@@ -113,6 +113,8 @@ def run_migrations(db_path: Path, project_root_dir: Path):
     """
     # Construct the absolute path to alembic.ini and the scripts directory
     # using the provided project_root_dir
+# Ensure Alembic files are present in the project_root_dir before proceeding
+    ensure_alembic_files_exist(project_root_dir)
     alembic_ini_path = project_root_dir / Path("alembic.ini")
     alembic_scripts_path = project_root_dir / Path("alembic")
 

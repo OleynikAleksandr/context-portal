@@ -25,6 +25,7 @@ except ImportError:
     from src.context_portal_mcp.handlers import mcp_handlers
     from src.context_portal_mcp.db import database, models
     from src.context_portal_mcp.core import exceptions
+from src.context_portal_mcp.db.database import ensure_alembic_files_exist  # <-- Added missing import for stdio mode fix
 
 # Configure logging
 log_format = '%(asctime)s - %(levelname)s - %(name)s - %(message)s'
